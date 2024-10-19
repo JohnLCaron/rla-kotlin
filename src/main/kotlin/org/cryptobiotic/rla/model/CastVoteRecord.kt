@@ -35,12 +35,12 @@ data class CastVoteRecord(
     val contestInfo: List<CVRContestInfo>,
 ) : Comparable<CastVoteRecord>, HasId {
     val version: Long = 0 // for optimistic locking for hibernate
-    private var revision: Long = 0 // used to store the order of edits made to a ballot submission
+    var revision: Long = 0 // used to store the order of edits made to a ballot submission
 
     /**
      * ACVR level comments, used for explaining why reaudit is happening
      */
-    private var comment: String? = null
+    var comment: String? = null
 
     /**
      * who is submitting this ACVR, used for reporting
@@ -165,16 +165,8 @@ data class CastVoteRecord(
         my_audit_flag = the_audit_flag
     }
 
-    fun setRevision(the_revision: Long) {
-        revision = the_revision
-    }
-
     fun setToReaudited() {
         this.recordType = RecordType.REAUDITED
-    }
-
-    fun setComment(the_comment: String?) {
-        this.comment = the_comment
     }
 
     /**

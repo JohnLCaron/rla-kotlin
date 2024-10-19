@@ -48,8 +48,8 @@ data class ComparisonAudit(
         gamma: BigDecimal,
         auditReason: AuditReason
     ): this(0L, 0L, contestResult, auditReason ) { // TODO no id or version
-        this.riskLimit = riskLimit
-        this.dilutedMargin = dilutedMargin
+        this.myRiskLimit = riskLimit
+        this.myDilutedMargin = dilutedMargin
         this.gamma = gamma
 
         // compute initial sample size
@@ -64,11 +64,11 @@ data class ComparisonAudit(
 
     private var auditStatus = AuditStatus.NOT_STARTED
 
-    private var gamma: BigDecimal = Audit.GAMMA
+    var gamma: BigDecimal = Audit.GAMMA
 
-    private var dilutedMargin = BigDecimal.ONE
+    var myDilutedMargin = BigDecimal.ONE
 
-    private var riskLimit = BigDecimal.ONE
+    var myRiskLimit = BigDecimal.ONE
 
     /** the number of ballots audited   */
     var auditedSampleCount: Int = 0
@@ -268,11 +268,11 @@ data class ComparisonAudit(
     /*
      * Risk limit achieved according to math.Audit.
      * This has a fallback to 1.0 (max risk) when ``nothing is known''.
-     *
+     */
     fun riskMeasurement(): BigDecimal {
-        if (auditedSampleCount > 0 && dilutedMargin.compareTo(BigDecimal.ZERO) > 0) {
+        if (auditedSampleCount > 0 && myDilutedMargin.compareTo(BigDecimal.ZERO) > 0) {
             val result =  Audit.pValueApproximation(auditedSampleCount,
-                dilutedMargin,
+                myDilutedMargin,
                 gamma,
                 my_one_vote_under_count,
                 my_two_vote_under_count,
@@ -284,8 +284,6 @@ data class ComparisonAudit(
             return BigDecimal.ONE;
         }
     }
-
-     */
 
     /**
      * A scaling factor for the estimate, from 1 (when no samples have
@@ -386,7 +384,7 @@ data class ComparisonAudit(
         twoOver: Int
     ): BigDecimal {
         return Audit.optimistic(
-            riskLimit, dilutedMargin, gamma,
+            myRiskLimit, myDilutedMargin, gamma,
             twoUnder, oneUnder, oneOver, twoOver
         )
     }

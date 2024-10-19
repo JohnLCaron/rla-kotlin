@@ -15,7 +15,7 @@ data class ContestResult(
     val winners: Set<String>,
     val losers: Set<String>,
     val counties: Set<County>,
-    val contests: Set<Contest>,
+    val contests: Set<Contest>, // TODO why a set?
     val voteTotals: Map<String, Int>,
     val contestName: String,
     val dilutedMargin: BigDecimal,

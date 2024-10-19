@@ -73,17 +73,6 @@ object Audit {
      * This is the stopping sample size as defined in the literature:
      * https://www.stat.berkeley.edu/~stark/Preprints/gentle12.pdf
      */
-    /**
-     * Computes the expected number of ballots to audit overall, assuming
-     * zero over- and understatements.
-     *
-     * @param riskLimit as prescribed
-     * @param dilutedMargin of the contest.
-     *
-     * @return the expected number of ballots remaining to audit.
-     * This is the stopping sample size as defined in the literature:
-     * https://www.stat.berkeley.edu/~stark/Preprints/gentle12.pdf
-     */
     @JvmOverloads
     fun optimistic(
         riskLimit: BigDecimal,
@@ -190,13 +179,14 @@ object Audit {
         auditedBallots: Int,
         dilutedMargin: BigDecimal,
         gamma: BigDecimal,
-        oneUnder: Int,
-        twoUnder: Int,
-        oneOver: Int,
-        twoOver: Int
+        oneUnder: Int,  // n3
+        twoUnder: Int,  // n4
+        oneOver: Int,  // n1
+        twoOver: Int   // n2
     ): BigDecimal {
         val totalErrorBound: BigDecimal = totalErrorBound(dilutedMargin, gamma)
 
+        // min(1, (1-1/U)^n * (1-1/(2*gamma))^(-n1) * (1-1/gamma)^(-n2) * (1+1/(2*gamma))^(-n3) * (1+1/(gamma))^(-n4))
         return BigDecimal.ONE.min(
             pow(
                 BigDecimal.ONE.subtract(
