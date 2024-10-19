@@ -2,6 +2,7 @@ package org.cryptobiotic.rla.dashboard
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.cryptobiotic.rla.model.*
+import org.cryptobiotic.rla.persistence.HasId
 
 import java.time.Instant
 import java.util.*
@@ -11,7 +12,7 @@ data class CountyDashboard(
     val version: Long,
     val county: County,
     val crvFile: UploadedFile,
-) {
+): HasId {
 
     /**
      * The number of CVRs imported.
@@ -755,6 +756,8 @@ data class CountyDashboard(
     override fun hashCode(): Int {
         return id.hashCode()
     }
+
+    override fun id() = id
 
     companion object {
         /**

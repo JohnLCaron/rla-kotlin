@@ -200,9 +200,9 @@ object ComparisonAuditController {
      */
     fun startRound(
         cdb: CountyDashboard,
-        audits: MutableSet<ComparisonAudit>,
-        auditSequence: MutableList<Long>,
-        ballotSequence: MutableList<Long>
+        audits: Set<ComparisonAudit>,
+        auditSequence: List<Long>,
+        ballotSequence: List<Long>
     ): Boolean {
         LOGGER.info(
             String.format(
@@ -436,7 +436,7 @@ object ComparisonAuditController {
             }
 
             if (cvrai.acvr != null) {
-                val acvrLocal = cvrai.acvr
+                val acvrLocal = cvrai.acvr!!
 
                 // do the thing
                 // update the round statistics as necessary

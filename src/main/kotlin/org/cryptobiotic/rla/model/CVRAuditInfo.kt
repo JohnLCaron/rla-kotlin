@@ -10,6 +10,7 @@
  */
 package org.cryptobiotic.rla.model
 
+import org.cryptobiotic.rla.persistence.HasId
 import java.util.*
 
 /**
@@ -23,7 +24,7 @@ data class CVRAuditInfo(
     // val county: County,
     val cvr: CastVoteRecord,
     val acvr: CastVoteRecord?, // submitted audit CVR
-) : Comparable<CVRAuditInfo> {
+) : Comparable<CVRAuditInfo>, HasId {
 
     //   public CVRAuditInfo(final CastVoteRecord the_cvr) {
     //    super();
@@ -149,4 +150,6 @@ data class CVRAuditInfo(
     override fun compareTo(other: CVRAuditInfo): Int {
         return cvr.compareTo(other.cvr)
     }
+
+    override fun id() = id
 }

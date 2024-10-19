@@ -10,6 +10,7 @@
  */
 package org.cryptobiotic.rla.model
 
+import org.cryptobiotic.rla.persistence.HasId
 import java.time.Instant
 
 /**
@@ -32,14 +33,14 @@ data class CastVoteRecord(
     val imprintedId: String,
     val ballotType: String,
     val contestInfo: List<CVRContestInfo>,
-) : Comparable<CastVoteRecord> {
+) : Comparable<CastVoteRecord>, HasId {
     val version: Long = 0 // for optimistic locking for hibernate
-    var revision: Long = 0 // used to store the order of edits made to a ballot submission
+    private var revision: Long = 0 // used to store the order of edits made to a ballot submission
 
     /**
      * ACVR level comments, used for explaining why reaudit is happening
      */
-    var comment: String? = null
+    private var comment: String? = null
 
     /**
      * who is submitting this ACVR, used for reporting
@@ -248,13 +249,7 @@ data class CastVoteRecord(
     }
 
     /**
-     * Compares this object to another.
-     *
-     * The sorting happens by the triple (scannerId, batchId, recordId) and
-     * will return a negative, positive, or 0-valued result if this should come
-     * before, after, or at the same point as the other object, respectively.
-     *
-     * @return int
+     * Compares this object to another, using (scannerId, batchId, recordId)
      */
     override fun compareTo(other: CastVoteRecord): Int {
         val scanner = scannerId - other.scannerId
@@ -262,7 +257,7 @@ data class CastVoteRecord(
         if (scanner != 0) {
             return scanner
         }
-
+        // TODO original uses "NaturalOrderComparator"
         val batch: Int = this.batchId.compareTo(other.batchId)
 
         if (batch != 0) {
@@ -271,6 +266,8 @@ data class CastVoteRecord(
 
         return recordId - other.recordId
     }
+
+    override fun id() = id
 
     companion object {
 

@@ -20,6 +20,28 @@ class BallotSelectionTest {
         assertEquals(0, result)
     }
 
+    //   public void testAuditedPrefixLengthWithSome() {
+    //    CastVoteRecord cvr1 = fakeAuditedCVR(1);
+    //    CastVoteRecord cvr2 = fakeAuditedCVR(2);
+    //    CastVoteRecord cvr3 = fakeAuditedCVR(3);
+    //    CastVoteRecord cvr4 = fakeAuditedCVR(4);
+    //    CastVoteRecord cvr5 = fakeAuditedCVR(5);
+    //    CastVoteRecord cvr6 = fakeCVR(6);
+    //    CastVoteRecord cvr7 = fakeAuditedCVR(7);
+    //    CastVoteRecord cvr8 = fakeAuditedCVR(8);
+    //
+    //    List<Long> cvrIds = new ArrayList<>();
+    //    cvrIds.add(cvr1.id());
+    //    cvrIds.add(cvr2.id());
+    //    cvrIds.add(cvr3.id());
+    //    cvrIds.add(cvr4.id());
+    //    cvrIds.add(cvr5.id());
+    //    cvrIds.add(cvr6.id());
+    //    cvrIds.add(cvr7.id());
+    //    cvrIds.add(cvr8.id());
+    //    Integer result = BallotSelection.auditedPrefixLength(cvrIds);
+    //    assertEquals((int)result, (int)5);
+    //  }
     @Test
     fun testAuditedPrefixLengthWithSome() {
         val cvrs = listOf(
@@ -32,8 +54,7 @@ class BallotSelectionTest {
             fakeAuditedCVR(7),
             fakeAuditedCVR(8)
         )
-        val cvrIds = mutableListOf<Long>()
-        cvrIds.addAll( cvrs.map { it.id })
+        val cvrIds = cvrs.map { it.id }
         val result = BallotSelection.auditedPrefixLength(cvrIds)
         assertEquals(5, result)
     }
