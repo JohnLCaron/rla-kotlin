@@ -3,20 +3,20 @@ package org.cryptobiotic.rla.controller
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.cryptobiotic.rla.model.BallotManifestInfo
 import org.cryptobiotic.rla.model.CVRAuditInfo
-import org.cryptobiotic.rla.model.CVRContestInfo
 import org.cryptobiotic.rla.model.CastVoteRecord
 import org.cryptobiotic.rla.model.ContestResult
 import org.cryptobiotic.rla.model.Tribute
+import org.cryptobiotic.rla.persistence.BallotManifestInfoQueries
+import org.cryptobiotic.rla.persistence.CastVoteRecordQueries
 import org.cryptobiotic.rla.persistence.Persistence
+import org.cryptobiotic.rla.util.PseudoRandomNumberGenerator
 
 // probably a singleton
 class BallotSelection private constructor() {
     
     class Segment {
         val cvrs = mutableListOf<CastVoteRecord>() // TODO was Set
-
         val cvrIds = mutableListOf<Long>()
-
         val tributes = mutableListOf<Tribute>()
 
         fun addTribute(
@@ -55,12 +55,10 @@ class BallotSelection private constructor() {
         }
     }
 
-    class Selection {
-        val segments: MutableMap<Long, Segment> = HashMap()
-        var domainSize = Int.MIN_VALUE
-        val generatedNumbers: MutableList<Int> = ArrayList()
-        var contestName: String? = null
-        var contestResult: ContestResult? = null
+    class Selection(val contestResult: ContestResult, val domainSize: Int = 0) {
+        val segments= mutableMapOf<Long, Segment>()
+        val generatedNumbers = mutableListOf<Int>()
+        val contestName = contestResult.contestName
 
         fun initCounty(countyId: Long) {
             if (forCounty(countyId) == null) {
@@ -78,7 +76,7 @@ class BallotSelection private constructor() {
         ) {
             forCounty(bmi.countyId)!!.addTribute(
                 bmi, ballotPosition,
-                rand, randSequencePosition, this.contestName!!
+                rand, randSequencePosition, this.contestName
             )
         }
 
@@ -98,7 +96,7 @@ class BallotSelection private constructor() {
         //        .collect(Collectors.toList());
         //    }
         fun contestCVRIds(): List<Long> {
-            return contestResult!!.countyIDs()
+            return contestResult.countyIDs()
                 .map { forCounty(it) }
                 .filter { it != null}
                 .map { it!!.cvrIds }
@@ -106,7 +104,7 @@ class BallotSelection private constructor() {
         }
 
         override fun toString(): String {
-            return kotlin.String.format(
+            return String.format(
                 "[Selection contestName=%s generatedNumbers=%s domainSize=%s]",
                 contestName, generatedNumbers, domainSize
             )
@@ -117,6 +115,20 @@ class BallotSelection private constructor() {
 
     companion object {
         val LOGGER = KotlinLogging.logger("BallotSelection")
+
+        /**
+         * The total number of ballots across a set of counties
+         * @param countyIds a set of counties to count
+         * @return the number of ballots in the ballot manifests belonging to
+         * countyIds
+         **/
+        fun ballotsCast(countyIds: Set<Long>): Long {
+            // could use voteTotals but that would be impure; using cvr data
+            //
+            // If a county has only one ballot for a contest, all the ballots from that
+            // county are used to get a total number of ballots
+            return BallotManifestInfoQueries.totalBallots(countyIds);
+        }
 
         fun combineSegments(segments: Collection<Segment>): Segment {
             return segments.stream()
@@ -137,6 +149,30 @@ class BallotSelection private constructor() {
             return bmis
         }
 
+        fun randomSelection(contestResult: ContestResult , seed: String , minIndex: Int , maxIndex: Int): Selection {
+            if (minIndex > maxIndex) {
+                return Selection(contestResult)
+            }
+
+            val domainSize = ballotsCast(contestResult.countyIDs()).toInt()
+            val gen = PseudoRandomNumberGenerator(seed, true, 1, domainSize);
+            val generatedNumbers = gen.getRandomNumbers(minIndex, maxIndex);
+
+            val selection = Selection(contestResult, domainSize)
+            selection.generatedNumbers.addAll(generatedNumbers)
+
+            // make the theoretical selections (avoiding cvrs)
+            selectTributes(selection, contestResult.countyIDs()) { ids -> BallotManifestInfoQueries.getMatching(ids)}
+
+            LOGGER.info(String.format("[randomSelection] selected %s samples for %s ",
+                selection.generatedNumbers.size,
+                contestResult.contestName));
+            LOGGER.debug("randomSelection: selection= " + selection);
+            // get the CVRs from the theoretical
+            resolveSelection(selection);
+            return selection;
+        }
+
         //   public static void selectTributes(final Selection selection,
         //                                    final Set<Long> countyIds,
         //                                    final MATCHINGQ queryMatching) {
@@ -144,7 +180,7 @@ class BallotSelection private constructor() {
         //    final Set<BallotManifestInfo> contestBmis = queryMatching.apply(countyIds);
         //    selectTributes(selection, countyIds, contestBmis);
         //  }
-        fun selectTributes(selection: Selection, countyIds: Set<Long>,  queryMatching: (Set<Long>) -> Set<BallotManifestInfo> ) {
+        fun selectTributes(selection: Selection, countyIds: Set<Long>, queryMatching: (Set<Long>) -> Set<BallotManifestInfo> ) {
             val contestBmis = queryMatching(countyIds)
             selectTributes(selection, countyIds, contestBmis)
         }
@@ -165,38 +201,47 @@ class BallotSelection private constructor() {
         }
 
         //   /** look for the cvrs, some may be phantom records **/
-        //  public static Selection resolveSelection(final Selection selection) {
-        //
-        //    selection.allSegments().forEach(segment -> {
-        //        final List<CastVoteRecord> cvrs =
-        //          dedupePhantomBallots(CastVoteRecordQueries.atPosition(segment.tributes));
-        //
-        //        segment.addCvrs(cvrs);
-        //        segment.addCvrIds(cvrs); // keep raw data separate
-        //      });
-        //    LOGGER.debug(String.format("[resolveSelection: selection=%s, combinedSegments=%s]",
-        //                               selection.segments,
-        //                               Selection.combineSegments(selection.allSegments()).cvrIds));
-        //    return selection;
-        //  }
-        /*
         fun resolveSelection(selection: Selection): Selection {
             for (segment in selection.segments.values) {
                 val cvrs: List<CastVoteRecord> =
-                    dedupePhantomBallots(CastVoteRecordQueries.atPosition(segment.tributes))
+                    dedupePhantomBallots( CastVoteRecordQueries.atPosition(segment.tributes))
                 segment.addCvrs(cvrs)
                 segment.addCvrIds(cvrs)
             }
             LOGGER.debug(
-                kotlin.String.format(
+                String.format(
                     "[resolveSelection: selection=%s, combinedSegments=%s]",
-                    selection.segments, combineSegments(selection.allSegments()).cvrIds
+                    selection.segments, combineSegments(selection.allSegments).cvrIds
                 )
             )
             return selection
         }
 
+        /**
+         * When we draw more than one phantom ballot, we need to make sure
+         * that the persistence context knows about only one instance of each.
+         * (Phantom ballots are POJOs, so every phantom ballot looks identical
+         * to the persistence context.)
+         *
+         * @param county The county.
+         * @param cvrs A list of CastVoteRecord objects that might contain phantom ballots
          */
+        fun dedupePhantomBallots(cvrs: List<CastVoteRecord> ): List<CastVoteRecord> {
+            return cvrs
+            /* A map of a CVR to a CVR so we can get a unique persisted entity from the database.
+            val phantomCvrs: Map<CastVoteRecord, CastVoteRecord> = cvrs
+                .filter { it.recordType == CastVoteRecord.RecordType.PHANTOM_RECORD }
+                .associate { it to it }
+
+            // Assign database identifiers to newly-created phantom CVRs.
+            phantomCvrs.entrySet().stream()
+                .forEach(e -> Persistence.saveOrUpdate(e.getValue()));
+
+            // Use the database-mapped CVR if it exists.
+            return cvrs.stream()
+                .map(cvr -> phantomCvrs.getOrDefault(cvr, cvr))
+            .collect(Collectors.toList()); */
+        }
 
         fun selectCountyId(rand: Long, bmis: Set<BallotManifestInfo>): BallotManifestInfo {
             val holding = projectUltimateSequence(bmis).stream()
@@ -210,6 +255,32 @@ class BallotSelection private constructor() {
             }
         }
 
+        //   public static Integer auditedPrefixLength(final List<Long> cvrIds) {
+        //    // FIXME extract-fn, then use
+        //    // Map <Long, Boolean> isAuditedById = checkAudited(cvrIds);
+        //
+        //    if (cvrIds.isEmpty()) { return 0; }
+        //
+        //    final Map <Long, Boolean> isAuditedById = new HashMap<>();
+        //
+        //    for (final Long cvrId: cvrIds) {
+        //      final CVRAuditInfo cvrai = Persistence.getByID(cvrId, CVRAuditInfo.class);
+        //      // has an acvr
+        //      final boolean isAudited = cvrai != null && cvrai.acvr() != null;
+        //      isAuditedById.put(cvrId, isAudited);
+        //    }
+        //
+        //    Integer idx = 0;
+        //    for (int i=0; i < cvrIds.size(); i++) {
+        //      final boolean audited = isAuditedById.get(cvrIds.get(i));
+        //      if (audited) {
+        //        idx = i + 1;
+        //      } else { break; }
+        //    }
+        //    LOGGER.debug(String.format("[auditedPrefixLength: isAuditedById=%s, apl=%d]",
+        //                                isAuditedById, idx));
+        //    return idx;
+        //  }
         fun auditedPrefixLength(cvrIds: List<Long>): Int {
             val isAuditedById: MutableMap<Long, Boolean> = HashMap()
             if (cvrIds.isEmpty()) {

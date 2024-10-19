@@ -12,6 +12,7 @@ package org.cryptobiotic.rla.model
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.cryptobiotic.rla.math.Audit
+import org.cryptobiotic.rla.persistence.HasId
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
@@ -27,7 +28,7 @@ data class ComparisonAudit(
     val version: Long,
     val contestResult: ContestResult,
     val auditReason: AuditReason,
-) {
+): HasId {
 
     /**
      * Constructs a ComparisonAudit for the given params
@@ -263,6 +264,28 @@ data class ComparisonAudit(
         }
         return my_estimated_samples_to_audit
     }
+
+    /*
+     * Risk limit achieved according to math.Audit.
+     * This has a fallback to 1.0 (max risk) when ``nothing is known''.
+     *
+    fun riskMeasurement(): BigDecimal {
+        if (auditedSampleCount > 0 && dilutedMargin.compareTo(BigDecimal.ZERO) > 0) {
+            val result =  Audit.pValueApproximation(auditedSampleCount,
+                dilutedMargin,
+                gamma,
+                my_one_vote_under_count,
+                my_two_vote_under_count,
+                my_one_vote_over_count,
+                my_two_vote_over_count);
+            return result.setScale(3, BigDecimal.ROUND_HALF_UP);
+        } else {
+            // full risk (100%) when nothing is known
+            return BigDecimal.ONE;
+        }
+    }
+
+     */
 
     /**
      * A scaling factor for the estimate, from 1 (when no samples have
@@ -922,6 +945,8 @@ data class ComparisonAudit(
             this.auditReason,
         )
     }
+
+    override fun id() = id
 
     companion object {
         /**
